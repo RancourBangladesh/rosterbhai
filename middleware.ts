@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { getSubdomainFromHostname } from './lib/subdomain';
+import { getSubdomainFromHostname, getTenantFromHostname } from './lib/subdomain';
 
 export function middleware(req: NextRequest) {
   const url = req.nextUrl.clone();
@@ -12,16 +12,58 @@ export function middleware(req: NextRequest) {
   const isTenantSubdomain = subdomain !== null;
   const isMainDomain = !isTenantSubdomain;
   
+  // If subdomain detected, verify tenant exists
+  if (isTenantSubdomain) {
+    const tenant = getTenantFromHostname(hostname);
+    
+    // If tenant doesn't exist, redirect to main domain
+    if (!tenant) {
+      // Build main domain URL
+      const mainHostname = hostname.includes('localhost') 
+        ? 'localhost:3000' 
+        : 'rosterbhai.me';
+      const protocol = hostname.includes('localhost') ? 'http' : 'https';
+      return NextResponse.redirect(new URL(`${protocol}://${mainHostname}`, req.url));
+    }
+    
+    // Tenant exists but is inactive
+    if (!tenant.is_active) {
+      const mainHostname = hostname.includes('localhost') 
+        ? 'localhost:3000' 
+        : 'rosterbhai.me';
+      const protocol = hostname.includes('localhost') ? 'http' : 'https';
+      return NextResponse.redirect(new URL(`${protocol}://${mainHostname}`, req.url));
+    }
+    
+    // For admin routes, validate that session tenant matches subdomain tenant
+    if (path.startsWith('/admin') && !path.startsWith('/admin/login')) {
+      const session = req.cookies.get('admin_session_v1');
+      if (session) {
+        try {
+          const sessionData = JSON.parse(Buffer.from(session.value, 'base64').toString());
+          // If session tenant doesn't match subdomain tenant, clear session and redirect to login
+          if (sessionData.tenantId !== tenant.id) {
+            const response = NextResponse.redirect(new URL('/admin/login', req.url));
+            response.cookies.set('admin_session_v1', '', { path: '/', maxAge: 0 });
+            return response;
+          }
+        } catch (e) {
+          // Invalid session, redirect to login
+          url.pathname = '/admin/login';
+          return NextResponse.redirect(url);
+        }
+      }
+    }
+  }
+  
   // Route protection: Tenant subdomains cannot access /developer
   if (isTenantSubdomain && path.startsWith('/developer')) {
-    // Redirect to employee login or dashboard
     url.pathname = '/employee';
     return NextResponse.redirect(url);
   }
   
   // Route protection: Main domain cannot access /employee or /admin
   if (isMainDomain && (path.startsWith('/employee') || path.startsWith('/admin'))) {
-    // Redirect to main landing page
     url.pathname = '/';
     return NextResponse.redirect(url);
   }
@@ -77,6 +119,10 @@ export const config = {
     '/',
     '/admin/:path*', 
     '/developer/:path*',
-    '/employee/:path*'
+    '/employee/:path*',
+    '/about',
+    '/pricing',
+    '/contact',
+    '/client'
   ]
 };
