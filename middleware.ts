@@ -16,14 +16,16 @@ export function middleware(req: NextRequest) {
   if (isTenantSubdomain) {
     const tenant = getTenantFromHostname(hostname);
     
-    // If tenant doesn't exist, redirect to main domain
+    // If tenant doesn't exist, redirect to main domain (but only once to avoid loops)
     if (!tenant) {
       // Build main domain URL
       const mainHostname = hostname.includes('localhost') 
         ? 'localhost:3000' 
         : 'rosterbhai.me';
       const protocol = hostname.includes('localhost') ? 'http' : 'https';
-      return NextResponse.redirect(new URL(`${protocol}://${mainHostname}`, req.url));
+      // Only redirect if we're not already being redirected
+      const mainDomainUrl = `${protocol}://${mainHostname}${path}`;
+      return NextResponse.redirect(mainDomainUrl);
     }
     
     // Tenant exists but is inactive
@@ -32,7 +34,8 @@ export function middleware(req: NextRequest) {
         ? 'localhost:3000' 
         : 'rosterbhai.me';
       const protocol = hostname.includes('localhost') ? 'http' : 'https';
-      return NextResponse.redirect(new URL(`${protocol}://${mainHostname}`, req.url));
+      const mainDomainUrl = `${protocol}://${mainHostname}${path}`;
+      return NextResponse.redirect(mainDomainUrl);
     }
     
     // For admin routes, validate that session tenant matches subdomain tenant
@@ -54,23 +57,29 @@ export function middleware(req: NextRequest) {
         }
       }
     }
-  }
-  
-  // Route protection: Tenant subdomains cannot access /developer
-  if (isTenantSubdomain && path.startsWith('/developer')) {
-    url.pathname = '/employee';
-    return NextResponse.redirect(url);
+    
+    // Redirect subdomain root to /employee (do this before other checks)
+    if (path === '/') {
+      url.pathname = '/employee';
+      return NextResponse.redirect(url);
+    }
+    
+    // Route protection: Tenant subdomains cannot access /developer
+    if (path.startsWith('/developer')) {
+      url.pathname = '/employee';
+      return NextResponse.redirect(url);
+    }
+    
+    // Route protection: Tenant subdomains cannot access marketing pages
+    if (path === '/about' || path === '/pricing' || path === '/contact') {
+      url.pathname = '/employee';
+      return NextResponse.redirect(url);
+    }
   }
   
   // Route protection: Main domain cannot access /employee or /admin
   if (isMainDomain && (path.startsWith('/employee') || path.startsWith('/admin'))) {
     url.pathname = '/';
-    return NextResponse.redirect(url);
-  }
-  
-  // Redirect subdomain root to /employee
-  if (isTenantSubdomain && path === '/') {
-    url.pathname = '/employee';
     return NextResponse.redirect(url);
   }
   
