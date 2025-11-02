@@ -1,25 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
-import { getDisplay, getModifiedShifts } from '@/lib/dataStore';
 import { getDisplayForTenant, loadAllForTenant, getModifiedShiftsForTenant } from '@/lib/dataStore.tenant';
 import { formatDateHeader } from '@/lib/utils';
 import { SHIFT_MAP } from '@/lib/constants';
-import { findEmployeeTenant } from '@/lib/employeeAuth';
+import { getTenantFromRequest } from '@/lib/subdomain';
 
-export async function GET(_: NextRequest, { params }:{params:{employeeId:string}}) {
+export async function GET(request: NextRequest, { params }:{params:{employeeId:string}}) {
   const employeeId = params.employeeId;
   
-  // Find which tenant this employee belongs to
-  const tenantId = findEmployeeTenant(employeeId);
+  // Get tenant from subdomain
+  const tenant = getTenantFromRequest(request);
   
-  let display;
-  if (tenantId) {
-    loadAllForTenant(tenantId);
-    display = getDisplayForTenant(tenantId);
-  } else {
-    display = getDisplay();
+  if (!tenant) {
+    return NextResponse.json({ error: 'Invalid tenant subdomain' }, { status: 400 });
   }
+  
+  if (!tenant.is_active) {
+    return NextResponse.json({ error: 'Tenant is not active' }, { status: 403 });
+  }
+  
+  loadAllForTenant(tenant.id);
+  const display = getDisplayForTenant(tenant.id);
   
   let employee: any = null;
   for (const [team,emps] of Object.entries(display.teams)) {
@@ -103,7 +105,7 @@ export async function GET(_: NextRequest, { params }:{params:{employeeId:string}
   }
 
   // shift changes from modified_shifts.json (current month only)
-  const modifiedShifts = getModifiedShifts();
+  const modifiedShifts = getModifiedShiftsForTenant(tenant.id);
   const changes:any[] = [];
   
   // Get current month-year in format YYYY-MM
