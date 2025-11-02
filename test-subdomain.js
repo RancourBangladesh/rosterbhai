@@ -9,6 +9,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { v4: uuidv4 } = require('uuid');
 
 const dataDir = path.join(__dirname, 'data');
 const tenantsDir = path.join(dataDir, 'tenants');
@@ -58,8 +59,6 @@ const testTenantSlug = 'rancour';
 let testTenant = tenantsData.tenants.find(t => t.slug === testTenantSlug);
 
 if (!testTenant) {
-  const { v4: uuidv4 } = require('uuid');
-  
   testTenant = {
     id: uuidv4(),
     name: 'Rancour Bangladesh',

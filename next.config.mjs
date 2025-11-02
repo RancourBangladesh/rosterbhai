@@ -16,4 +16,9 @@ const nextConfig = {
     }
   }
 };
+
+// Note: The port 3000 is the default Next.js development port.
+// If you use a different port, update the allowedOrigins accordingly
+// or use environment variables for configuration.
+
 export default nextConfig;

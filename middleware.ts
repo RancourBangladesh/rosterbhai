@@ -1,42 +1,12 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-
-/**
- * Extract subdomain from hostname
- * Returns null if no subdomain or if it's www
- */
-function getSubdomain(hostname: string): string | null {
-  // For localhost testing: handle localhost:3000 format
-  if (hostname.includes('localhost')) {
-    // Check for subdomain.localhost format (e.g., rancour.localhost:3000)
-    const parts = hostname.split('.');
-    if (parts.length >= 2 && parts[0] !== 'localhost') {
-      return parts[0];
-    }
-    return null;
-  }
-  
-  // For production: handle rosterbhai.me and subdomains
-  const parts = hostname.split('.');
-  
-  // If we have at least 3 parts (subdomain.rosterbhai.me), extract subdomain
-  if (parts.length >= 3) {
-    const subdomain = parts[0];
-    // Ignore www subdomain
-    if (subdomain === 'www') {
-      return null;
-    }
-    return subdomain;
-  }
-  
-  return null;
-}
+import { getSubdomainFromHostname } from './lib/subdomain';
 
 export function middleware(req: NextRequest) {
   const url = req.nextUrl.clone();
   const path = url.pathname;
   const hostname = req.headers.get('host') || '';
-  const subdomain = getSubdomain(hostname);
+  const subdomain = getSubdomainFromHostname(hostname);
   
   // Determine if this is a tenant subdomain or main domain
   const isTenantSubdomain = subdomain !== null;
