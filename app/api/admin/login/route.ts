@@ -1,15 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateAdminLogin, createSession } from '@/lib/auth';
-import { getTenantFromRequest } from '@/lib/subdomain';
+import { getSubdomainFromHostname } from '@/lib/subdomain';
+import { getTenantBySlug } from '@/lib/tenants';
 
 export async function POST(request: NextRequest) {
   const { username, password } = await request.json();
   
-  // Get tenant from subdomain
-  const tenant = getTenantFromRequest(request);
+  // Get tenant from subdomain using headers
+  const hostname = request.headers.get('host') || '';
+  const subdomain = getSubdomainFromHostname(hostname);
+  
+  if (!subdomain) {
+    return NextResponse.json({ error: 'Invalid tenant subdomain - no subdomain detected' }, { status: 400 });
+  }
+  
+  const tenant = getTenantBySlug(subdomain);
   
   if (!tenant) {
-    return NextResponse.json({ error: 'Invalid tenant subdomain' }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid tenant subdomain - tenant not found' }, { status: 400 });
   }
   
   if (!tenant.is_active) {

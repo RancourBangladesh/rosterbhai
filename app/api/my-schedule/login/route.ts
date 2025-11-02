@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyTenantEmployeePassword, initializeTenantEmployeePasswords } from '@/lib/employeeAuth';
 import { getDisplayForTenant, loadAllForTenant } from '@/lib/dataStore.tenant';
-import { getTenantFromRequest } from '@/lib/subdomain';
+import { getSubdomainFromHostname } from '@/lib/subdomain';
+import { getTenantBySlug } from '@/lib/tenants';
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,8 +15,18 @@ export async function POST(req: NextRequest) {
       }, { status: 400 });
     }
 
-    // Get tenant from subdomain
-    const tenant = getTenantFromRequest(req);
+    // Get tenant from subdomain using headers
+    const hostname = req.headers.get('host') || '';
+    const subdomain = getSubdomainFromHostname(hostname);
+    
+    if (!subdomain) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Invalid tenant subdomain' 
+      }, { status: 400 });
+    }
+    
+    const tenant = getTenantBySlug(subdomain);
     
     if (!tenant) {
       return NextResponse.json({ 

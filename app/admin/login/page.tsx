@@ -10,7 +10,44 @@ export default function AdminLoginPage() {
   const [p,setP]=useState('');
   const [msg,setMsg]=useState('');
   const [loading,setLoading]=useState(false);
+  const [validatingTenant, setValidatingTenant] = useState(true);
+  const [tenantValid, setTenantValid] = useState(false);
   const formRef = useRef<HTMLFormElement|null>(null);
+
+  useEffect(() => {
+    // Validate that the tenant exists
+    fetch('/api/my-schedule/tenant-info')
+      .then(res => res.json())
+      .then(data => {
+        if (data.tenant && data.tenant.is_active) {
+          setTenantValid(true);
+        } else {
+          // Tenant doesn't exist or is inactive, redirect to main domain
+          const protocol = window.location.protocol;
+          const hostname = window.location.hostname;
+          const port = window.location.port;
+          
+          const mainHostname = hostname.includes('localhost') 
+            ? `localhost${port ? ':' + port : ''}` 
+            : 'rosterbhai.me';
+          
+          window.location.href = `${protocol}//${mainHostname}/`;
+        }
+        setValidatingTenant(false);
+      })
+      .catch(() => {
+        // Error checking tenant, redirect to main domain
+        const protocol = window.location.protocol;
+        const hostname = window.location.hostname;
+        const port = window.location.port;
+        
+        const mainHostname = hostname.includes('localhost') 
+          ? `localhost${port ? ':' + port : ''}` 
+          : 'rosterbhai.me';
+        
+        window.location.href = `${protocol}//${mainHostname}/`;
+      });
+  }, []);
 
   async function submit(e:React.FormEvent) {
     e.preventDefault();
@@ -48,6 +85,26 @@ export default function AdminLoginPage() {
     window.addEventListener('keydown', handler);
     return ()=> window.removeEventListener('keydown', handler);
   },[]);
+
+  if (validatingTenant) {
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        minHeight: '100vh',
+        fontSize: '18px',
+        color: '#666'
+      }}>
+        Validating tenant...
+      </div>
+    );
+  }
+
+  if (!tenantValid) {
+    return null; // Will redirect
+  }
+
 
   return (
     <div className="admin-auth-shell">
