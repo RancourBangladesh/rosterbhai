@@ -1,64 +1,50 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { getSubdomainFromHostname, getTenantFromHostname } from './lib/subdomain';
+
+/**
+ * Extract subdomain from hostname
+ * Returns null if no subdomain or if it's www
+ */
+function getSubdomain(hostname: string): string | null {
+  // For localhost testing: handle localhost:3000 format
+  if (hostname.includes('localhost')) {
+    // Check for subdomain.localhost format (e.g., rancour.localhost:3000)
+    const parts = hostname.split('.');
+    if (parts.length >= 2 && parts[0] !== 'localhost') {
+      return parts[0];
+    }
+    return null;
+  }
+  
+  // For production: handle rosterbhai.me and subdomains
+  const parts = hostname.split('.');
+  
+  // If we have at least 3 parts (subdomain.rosterbhai.me), extract subdomain
+  if (parts.length >= 3) {
+    const subdomain = parts[0];
+    // Ignore www subdomain
+    if (subdomain === 'www') {
+      return null;
+    }
+    return subdomain;
+  }
+  
+  return null;
+}
 
 export function middleware(req: NextRequest) {
   const url = req.nextUrl.clone();
   const path = url.pathname;
   const hostname = req.headers.get('host') || '';
-  const subdomain = getSubdomainFromHostname(hostname);
+  const subdomain = getSubdomain(hostname);
   
   // Determine if this is a tenant subdomain or main domain
   const isTenantSubdomain = subdomain !== null;
   const isMainDomain = !isTenantSubdomain;
   
-  // If subdomain detected, verify tenant exists
+  // TENANT SUBDOMAIN LOGIC
   if (isTenantSubdomain) {
-    const tenant = getTenantFromHostname(hostname);
-    
-    // If tenant doesn't exist, redirect to main domain (but only once to avoid loops)
-    if (!tenant) {
-      // Build main domain URL
-      const mainHostname = hostname.includes('localhost') 
-        ? 'localhost:3000' 
-        : 'rosterbhai.me';
-      const protocol = hostname.includes('localhost') ? 'http' : 'https';
-      // Only redirect if we're not already being redirected
-      const mainDomainUrl = `${protocol}://${mainHostname}${path}`;
-      return NextResponse.redirect(mainDomainUrl);
-    }
-    
-    // Tenant exists but is inactive
-    if (!tenant.is_active) {
-      const mainHostname = hostname.includes('localhost') 
-        ? 'localhost:3000' 
-        : 'rosterbhai.me';
-      const protocol = hostname.includes('localhost') ? 'http' : 'https';
-      const mainDomainUrl = `${protocol}://${mainHostname}${path}`;
-      return NextResponse.redirect(mainDomainUrl);
-    }
-    
-    // For admin routes, validate that session tenant matches subdomain tenant
-    if (path.startsWith('/admin') && !path.startsWith('/admin/login')) {
-      const session = req.cookies.get('admin_session_v1');
-      if (session) {
-        try {
-          const sessionData = JSON.parse(Buffer.from(session.value, 'base64').toString());
-          // If session tenant doesn't match subdomain tenant, clear session and redirect to login
-          if (sessionData.tenantId !== tenant.id) {
-            const response = NextResponse.redirect(new URL('/admin/login', req.url));
-            response.cookies.set('admin_session_v1', '', { path: '/', maxAge: 0 });
-            return response;
-          }
-        } catch (e) {
-          // Invalid session, redirect to login
-          url.pathname = '/admin/login';
-          return NextResponse.redirect(url);
-        }
-      }
-    }
-    
-    // Redirect subdomain root to /employee (do this before other checks)
+    // Redirect subdomain root to /employee
     if (path === '/') {
       url.pathname = '/employee';
       return NextResponse.redirect(url);
@@ -71,53 +57,40 @@ export function middleware(req: NextRequest) {
     }
     
     // Route protection: Tenant subdomains cannot access marketing pages
-    if (path === '/about' || path === '/pricing' || path === '/contact') {
+    if (path === '/about' || path === '/pricing' || path === '/contact' || path === '/client') {
       url.pathname = '/employee';
       return NextResponse.redirect(url);
     }
-  }
-  
-  // Route protection: Main domain cannot access /employee or /admin
-  if (isMainDomain && (path.startsWith('/employee') || path.startsWith('/admin'))) {
-    url.pathname = '/';
-    return NextResponse.redirect(url);
-  }
-  
-  // Handle developer routes (only on main domain)
-  if (path.startsWith('/developer')) {
-    // Allow login page always
-    if (path.startsWith('/developer/login')) return NextResponse.next();
     
-    // Check developer session
-    const devSession = req.cookies.get('developer_session_v1');
-    if (!devSession) {
-      url.pathname = '/developer/login';
+    // Allow employee and admin pages through
+    // Tenant validation will be done in the API routes/pages
+    if (path.startsWith('/employee') || path.startsWith('/admin')) {
+      return NextResponse.next();
+    }
+  }
+  
+  // MAIN DOMAIN LOGIC
+  if (isMainDomain) {
+    // Route protection: Main domain cannot access /employee or /admin
+    if (path.startsWith('/employee') || path.startsWith('/admin')) {
+      url.pathname = '/';
       return NextResponse.redirect(url);
     }
     
-    return NextResponse.next();
-  }
-  
-  // Handle admin routes (only on tenant subdomains)
-  if (path.startsWith('/admin')) {
-    // Allow login page always
-    if (path.startsWith('/admin/login')) return NextResponse.next();
-
-    // Read cookie
-    const session = req.cookies.get('admin_session_v1');
-    if (!session) {
-      url.pathname = '/admin/login';
-      return NextResponse.redirect(url);
+    // Handle developer routes
+    if (path.startsWith('/developer')) {
+      // Allow login page always
+      if (path.startsWith('/developer/login')) return NextResponse.next();
+      
+      // Check developer session
+      const devSession = req.cookies.get('developer_session_v1');
+      if (!devSession) {
+        url.pathname = '/developer/login';
+        return NextResponse.redirect(url);
+      }
+      
+      return NextResponse.next();
     }
-
-    return NextResponse.next();
-  }
-  
-  // Handle employee routes (only on tenant subdomains)
-  if (path.startsWith('/employee')) {
-    // Employee route doesn't require auth check here
-    // Auth is handled in the page component
-    return NextResponse.next();
   }
   
   return NextResponse.next();
