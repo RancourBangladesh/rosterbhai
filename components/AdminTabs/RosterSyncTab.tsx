@@ -604,54 +604,6 @@ export default function RosterSyncTab({id}: Props) {
         </div>
       </div>
 
-      {/* Reset Operations Section */}
-      <div style={{marginBottom: '40px'}}>
-        <h3 style={{fontSize: '1.3rem', marginBottom: '15px', color: 'var(--primary)', display:'flex', alignItems:'center', gap:8}}>
-          <RotateCcw size={20} />
-          Reset Operations
-        </h3>
-        
-        {/* Reset to Google/CSV */}
-        <div style={{marginBottom: '25px'}}>
-          <h4 style={{fontSize: '1.1rem', marginBottom: '10px'}}>Reset to Google/CSV Data</h4>
-          <p style={{marginBottom: '12px', color: 'var(--text-dim)'}}>
-            Reset admin roster data to match the original Google Sheets or CSV data. This will remove all manual shift modifications.
-          </p>
-          <button
-            className="btn"
-            style={{backgroundColor: '#ff9800', color: 'white'}}
-            onClick={resetToGoogleOrCSV}
-            disabled={loading || syncing || resetting}
-          >
-            {resetting ? 'Resetting…' : <><RotateCcw size={16} style={{display:'inline', marginRight:6}} />Reset to Google/CSV</>}
-          </button>
-        </div>
-
-        {/* Hard Reset */}
-        <div>
-          <h4 style={{fontSize: '1.1rem', marginBottom: '10px', color: '#ff6b6b'}}>⚠️ Hard Reset (Danger Zone)</h4>
-          <p style={{marginBottom: '12px', color: '#ff6b6b'}}>
-            This will permanently delete ALL schedule data including:
-          </p>
-          <ul style={{marginBottom: '12px', marginLeft: '20px', color: 'var(--text-dim)'}}>
-            <li>Admin modified roster data</li>
-            <li>Google Sheets imported data</li>
-            <li>Shift modification history</li>
-            <li>All schedule requests</li>
-          </ul>
-          <div className="import-box" style={{borderColor: '#ff6b6b', marginTop: '10px'}}>
-            <button
-              className="btn"
-              style={{backgroundColor: '#ff6b6b', color: 'white'}}
-              disabled={hardResetting}
-              onClick={hardReset}
-            >
-              {hardResetting ? 'Resetting...' : '🗑️ Hard Reset All Data'}
-            </button>
-          </div>
-        </div>
-      </div>
-
       {/* Roster Template Modal */}
       <RosterTemplateModal
         open={showRosterTemplate}

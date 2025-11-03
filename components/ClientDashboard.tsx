@@ -85,11 +85,7 @@ export default function ClientDashboard({employeeId, fullName, onLogout}:Props) 
 
   async function loadTenantInfo() {
     try {
-      const res = await fetch('/api/my-schedule/tenant-info', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({employeeId})
-      });
+      const res = await fetch('/api/my-schedule/tenant-info');
       const data = await res.json();
       if (data.success && data.tenant) {
         setTenantInfo(data.tenant);

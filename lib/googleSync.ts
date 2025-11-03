@@ -1,5 +1,6 @@
 import fetch from 'node-fetch';
 import { getGoogleLinks, setGoogle } from './dataStore';
+import { getGoogleLinksForTenant, setGoogleForTenant } from './dataStore.tenant';
 import { RosterData } from './types';
 import { parseCsv } from './utils';
 
@@ -21,6 +22,27 @@ export async function syncGoogleSheets(): Promise<{ employees:number; sheets:num
     }
   }
   setGoogle(aggregated);
+  return { employees: aggregated.allEmployees.length, sheets: urls.length };
+}
+
+export async function syncGoogleSheetsForTenant(tenantId: string): Promise<{ employees:number; sheets:number }> {
+  const links = getGoogleLinksForTenant(tenantId);
+  const urls = Object.values(links);
+  if (!urls.length) throw new Error("No Google Sheets links configured for this tenant");
+  const aggregated: RosterData = {teams:{}, headers:[], allEmployees:[]};
+
+  for (const url of urls) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      const text = await res.text();
+      const parsed = parseOne(text);
+      merge(aggregated, parsed);
+    } catch (e) {
+      console.error("Error loading sheet:", url, e);
+    }
+  }
+  setGoogleForTenant(tenantId, aggregated);
   return { employees: aggregated.allEmployees.length, sheets: urls.length };
 }
 

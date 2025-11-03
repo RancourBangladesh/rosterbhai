@@ -1,28 +1,50 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { getSessionUser } from '@/lib/auth';
 import { deleteFile } from '@/lib/utils';
-import { GOOGLE_DATA_FILE, ADMIN_DATA_FILE, MODIFIED_SHIFTS_FILE, SCHEDULE_REQUESTS_FILE } from '@/lib/constants';
-import { reloadAll } from '@/lib/dataStore';
+import { getTenantDataDir, getTenantGoogleDataFile, getTenantAdminDataFile, getTenantModifiedShiftsFile, getTenantScheduleRequestsFile, getTenantGoogleLinksFile, getTenantSettingsFile, getTenantEmployeeCredentialsFile } from '@/lib/constants';
+import { reloadAllForTenant } from '@/lib/dataStore.tenant';
+import fs from 'fs';
 
 export const dynamic = 'force-dynamic';
 
-export async function POST() {
-  if (!getSessionUser()) return NextResponse.json({error:'Unauthorized'},{status:401});
+export async function POST(req: NextRequest) {
+  const session = getSessionUser();
+  if (!session) return NextResponse.json({error:'Unauthorized'},{status:401});
+  
+  const tenantId = session.tenantId;
+  if (!tenantId) {
+    return NextResponse.json({error:'No tenant ID in session'},{status:400});
+  }
   
   try {
-    deleteFile(GOOGLE_DATA_FILE);
-    deleteFile(ADMIN_DATA_FILE);
-    deleteFile(MODIFIED_SHIFTS_FILE);
-    deleteFile(SCHEDULE_REQUESTS_FILE);
+    // Delete all tenant-specific data files
+    deleteFile(getTenantGoogleDataFile(tenantId));
+    deleteFile(getTenantAdminDataFile(tenantId));
+    deleteFile(getTenantModifiedShiftsFile(tenantId));
+    deleteFile(getTenantScheduleRequestsFile(tenantId));
+    deleteFile(getTenantGoogleLinksFile(tenantId));
+    deleteFile(getTenantSettingsFile(tenantId));
+    deleteFile(getTenantEmployeeCredentialsFile(tenantId));
     
-    // Reload all data from disk to refresh in-memory cache
-    reloadAll();
+    // Delete roster templates directory if it exists
+    const templatesDir = `${getTenantDataDir(tenantId)}/roster_templates`;
+    try {
+      if (fs.existsSync(templatesDir)) {
+        fs.rmSync(templatesDir, { recursive: true, force: true });
+      }
+    } catch (e) {
+      console.error('Failed to delete templates directory:', e);
+    }
+    
+    // Reload all data from disk to refresh in-memory cache for this tenant
+    reloadAllForTenant(tenantId);
     
     return NextResponse.json({
       success: true,
-      message: 'All roster data has been reset. Deleted: admin_data.json, google_data.json, modified_shifts.json, and schedule_requests.json'
+      message: 'All roster data for this tenant has been reset. Deleted: employees, schedules, shift modifications, and schedule requests.'
     });
   } catch (e: any) {
+    console.error('Hard reset error:', e);
     return NextResponse.json({
       success: false,
       error: e.message || 'Failed to reset data'

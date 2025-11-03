@@ -1,8 +1,7 @@
 "use client";
 import { useState, useEffect, useMemo } from 'react';
-import { Edit, BarChart3 } from 'lucide-react';
+import { Edit } from 'lucide-react';
 import MonthCompactCalendar from '../Shared/MonthCompactCalendar';
-import GoogleSheetsRosterModal from '../Shared/GoogleSheetsRosterModal';
 import AdminRosterDataModal from '../Shared/AdminRosterDataModal';
 import { SHIFT_MAP } from '@/lib/constants';
 
@@ -23,9 +22,6 @@ export default function RosterDataTab({id}:Props) {
   // Edit state
   const [editingShift, setEditingShift] = useState<{empId: string; empName: string; dateIndex: number} | null>(null);
   const [editShiftValue, setEditShiftValue] = useState('');
-  
-  // Google Sheets Roster Modal state
-  const [showGoogleSheetsModal, setShowGoogleSheetsModal] = useState(false);
   
   // Admin Roster Data Modal state
   const [showAdminRosterModal, setShowAdminRosterModal] = useState(false);
@@ -277,14 +273,6 @@ export default function RosterDataTab({id}:Props) {
             {loading ? 'Loading…' : saving ? 'Saving…' : 'Refresh'}
           </button>
           <button 
-            className="rd-btn google-sheets" 
-            onClick={() => setShowGoogleSheetsModal(true)} 
-            disabled={loading || !googleData}
-          >
-            <BarChart3 size={16} style={{display:'inline', marginRight:6}} />
-            Google Sheets Roster
-          </button>
-                    <button 
             className="roster-data-main-btn" 
             onClick={() => setShowAdminRosterModal(true)} 
             disabled={loading || !adminData}
@@ -314,7 +302,7 @@ export default function RosterDataTab({id}:Props) {
             Your tenant doesn&apos;t have any roster data. Create a template to get started!
           </p>
           <div style={{display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '20px'}}>
-            <a href="#template-creator" style={{
+            <a href="/admin/dashboard/template-creator" style={{
               padding: '12px 24px',
               background: '#3b82f6',
               color: '#fff',
@@ -324,7 +312,7 @@ export default function RosterDataTab({id}:Props) {
             }}>
               Go to Template Creator
             </a>
-            <a href="#csv-import" style={{
+            <a href="/admin/dashboard/csv-import" style={{
               padding: '12px 24px',
               background: '#10b981',
               color: '#fff',
@@ -527,17 +515,6 @@ export default function RosterDataTab({id}:Props) {
             </div>
           </div>
         </div>
-      )}
-
-      {/* Google Sheets Roster Modal */}
-      {googleData && (
-        <GoogleSheetsRosterModal
-          open={showGoogleSheetsModal}
-          onClose={() => setShowGoogleSheetsModal(false)}
-          headers={googleData.headers || []}
-          teams={googleData.teams || {}}
-          shiftDefinitions={shiftDefinitions}
-        />
       )}
 
       {/* Admin Roster Data Modal — pass selectedDate so it opens on the same month */}
