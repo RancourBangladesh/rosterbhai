@@ -158,3 +158,91 @@ function mergeHeaders(existing: string[], newMonthHeaders: string[], detectedMon
   const filtered = existing.filter(h=>!h.toLowerCase().includes(detectedMonth.toLowerCase()));
   return [...filtered, ...newMonthHeaders];
 }
+
+/**
+ * Merge Google (CSV) data into Admin data for a tenant
+ * This takes all employees and schedules from Google data and merges them into Admin data
+ */
+export function mergeGoogleIntoAdminForTenant(tenantId: string): { employeesMerged: number } {
+  // Import here to avoid circular dependencies
+  const { getGoogleForTenant, getAdminForTenant, setAdminForTenant } = require('./dataStore.tenant');
+  
+  const googleData = getGoogleForTenant(tenantId);
+  const adminData = getAdminForTenant(tenantId);
+  
+  if (!googleData || !googleData.allEmployees || googleData.allEmployees.length === 0) {
+    throw new Error('No Google/CSV data to sync');
+  }
+  
+  // If admin data is empty, just copy Google data to Admin
+  if (!adminData || !adminData.allEmployees || adminData.allEmployees.length === 0) {
+    setAdminForTenant(tenantId, JSON.parse(JSON.stringify(googleData)));
+    return { employeesMerged: googleData.allEmployees.length };
+  }
+  
+  // Merge headers
+  const mergedHeaders = Array.from(new Set([...adminData.headers, ...googleData.headers]));
+  
+  // Merge teams and employees
+  const mergedTeams: Record<string, Employee[]> = JSON.parse(JSON.stringify(adminData.teams));
+  
+  Object.entries(googleData.teams).forEach(([teamName, googleEmps]) => {
+    if (!mergedTeams[teamName]) {
+      mergedTeams[teamName] = [];
+    }
+    
+    (googleEmps as Employee[]).forEach(googleEmp => {
+      const existingEmp = mergedTeams[teamName].find(e => e.id === googleEmp.id);
+      
+      if (existingEmp) {
+        // Update existing employee schedule from Google data
+        googleData.headers.forEach((hdr, i) => {
+          const idx = mergedHeaders.indexOf(hdr);
+          if (idx >= 0 && googleEmp.schedule[i]) {
+            // Ensure schedule array is long enough
+            while (existingEmp.schedule.length <= idx) {
+              existingEmp.schedule.push('');
+            }
+            existingEmp.schedule[idx] = googleEmp.schedule[i];
+          }
+        });
+      } else {
+        // Add new employee
+        const newEmp: Employee = {
+          name: googleEmp.name,
+          id: googleEmp.id,
+          currentTeam: teamName,
+          team: teamName,
+          schedule: Array(mergedHeaders.length).fill('')
+        };
+        
+        googleData.headers.forEach((hdr, i) => {
+          const idx = mergedHeaders.indexOf(hdr);
+          if (idx >= 0 && googleEmp.schedule[i]) {
+            newEmp.schedule[idx] = googleEmp.schedule[i];
+          }
+        });
+        
+        mergedTeams[teamName].push(newEmp);
+      }
+    });
+  });
+  
+  // Rebuild allEmployees
+  const allEmployees: Employee[] = [];
+  Object.entries(mergedTeams).forEach(([team, emps]) => {
+    emps.forEach(e => {
+      e.currentTeam = team;
+      allEmployees.push(e);
+    });
+  });
+  
+  const mergedData: RosterData = {
+    teams: mergedTeams,
+    headers: mergedHeaders,
+    allEmployees
+  };
+  
+  setAdminForTenant(tenantId, mergedData);
+  return { employeesMerged: allEmployees.length };
+}
