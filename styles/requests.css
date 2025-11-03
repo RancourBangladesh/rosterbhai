@@ -1,0 +1,17 @@
+.request-badge {
+  background:var(--panel-alt);
+  border:1px solid var(--border);
+  padding:4px 8px;
+  border-radius:8px;
+  font-size:.55rem;
+  letter-spacing:.8px;
+  text-transform:uppercase;
+  font-weight:600;
+  color:var(--text-dim);
+  display:inline-flex;
+  gap:4px;
+  align-items:center;
+}
+.request-badge.approved { color:var(--success); border-color:var(--success); background:var(--success-light); }
+.request-badge.rejected { color:var(--danger); border-color:var(--danger); background:var(--danger-light); }
+.request-badge.pending { color:var(--warn); border-color:var(--warn); background:var(--warn-light); }

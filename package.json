@@ -1,0 +1,32 @@
+{
+  "name": "multi-tenant-roster-system",
+  "private": true,
+  "version": "2.0.0",
+  "scripts": {
+    "dev": "next dev --turbo",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "setup": "node setup.js"
+  },
+  "dependencies": {
+    "csv-parse": "^5.5.6",
+    "formidable": "^3.5.1",
+    "lucide-react": "^0.545.0",
+    "next": "^14.2.33",
+    "node-fetch": "^3.3.2",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "uuid": "^9.0.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.19",
+    "@types/react": "^18.2.66",
+    "@types/react-dom": "^18.2.22",
+    "@types/uuid": "^10.0.0",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "14.2.3",
+    "typescript": "^5.4.5"
+  }
+}

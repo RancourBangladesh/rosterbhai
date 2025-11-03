@@ -1,0 +1,36 @@
+import { NextResponse, NextRequest } from 'next/server';
+import { getSessionUser } from '@/lib/auth';
+import { deleteFile } from '@/lib/utils';
+import { getTenantGoogleDataFile } from '@/lib/constants';
+import { reloadAllForTenant } from '@/lib/dataStore.tenant';
+
+export const dynamic = 'force-dynamic';
+
+export async function POST(req: NextRequest) {
+  const session = getSessionUser();
+  if (!session) return NextResponse.json({error:'Unauthorized'},{status:401});
+  
+  const tenantId = session.tenantId;
+  if (!tenantId) {
+    return NextResponse.json({error:'No tenant ID in session'},{status:400});
+  }
+  
+  try {
+    // Delete Google data file (which contains CSV imports)
+    deleteFile(getTenantGoogleDataFile(tenantId));
+    
+    // Reload tenant data
+    reloadAllForTenant(tenantId);
+    
+    return NextResponse.json({
+      success: true,
+      message: 'CSV imported data deleted successfully'
+    });
+  } catch (e: any) {
+    console.error('CSV delete error:', e);
+    return NextResponse.json({
+      success: false,
+      error: e.message || 'Failed to delete CSV data'
+    }, {status: 500});
+  }
+}
